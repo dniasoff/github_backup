@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitHub Backup Management - Login</title>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .login-container {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+        }
+
+        .logo {
+            font-size: 3rem;
+            margin-bottom: 10px;
+        }
+
+        .login-title {
+            font-size: 1.8rem;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .login-subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 0.95rem;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #333;
+            font-size: 0.9rem;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            background-color: #f8f9fa;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #667eea;
+            background-color: white;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .login-btn {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 10px;
+        }
+
+        .login-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .login-btn:active {
+            transform: translateY(0);
+        }
+
+        .login-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .error-message {
+            background: #fee;
+            color: #c33;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+            border: 1px solid #fcc;
+            display: none;
+        }
+
+        .loading {
+            display: none;
+            margin-top: 10px;
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .loading::after {
+            content: '';
+            animation: dots 1.5s steps(5, end) infinite;
+        }
+
+        @keyframes dots {
+            0%, 20% { content: '.'; }
+            40% { content: '..'; }
+            60% { content: '...'; }
+            80%, 100% { content: ''; }
+        }
+
+        .footer {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #e1e5e9;
+            color: #666;
+            font-size: 0.85rem;
+        }
+
+        @media (max-width: 480px) {
+            .login-container {
+                margin: 20px;
+                padding: 30px 25px;
+            }
+            
+            .login-title {
+                font-size: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="logo">🔒</div>
+        <h1 class="login-title">GitHub Backup</h1>
+        <p class="login-subtitle">Sign in to access backup management</p>
+
+        <div id="errorMessage" class="error-message"></div>
+
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="username" class="form-label">Username</label>
+                <input 
+                    type="text" 
+                    id="username" 
+                    name="username" 
+                    class="form-control" 
+                    required 
+                    autocomplete="username"
+                    placeholder="Enter username"
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="password" class="form-label">Password</label>
+                <input 
+                    type="password" 
+                    id="password" 
+                    name="password" 
+                    class="form-control" 
+                    required 
+                    autocomplete="current-password"
+                    placeholder="Enter password"
+                >
+            </div>
+
+            <button type="submit" id="loginBtn" class="login-btn">
+                Sign In
+            </button>
+
+            <div id="loading" class="loading">
+                Authenticating
+            </div>
+        </form>
+
+        <div class="footer">
+            <p>GitHub Backup Management System</p>
+            <p>Secure access to repository backups</p>
+        </div>
+    </div>
+
+    <script>
+        // Configuration - Update with your API Gateway URL
+        const API_BASE_URL = 'https://cg0ycu9hf0.execute-api.eu-west-2.amazonaws.com/prod';
+        
+        // Check if already logged in
+        document.addEventListener('DOMContentLoaded', function() {
+            const token = localStorage.getItem('backup_token');
+            if (token) {
+                validateExistingToken(token);
+            }
+        });
+
+        // Handle form submission
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+            
+            if (!username || !password) {
+                showError('Please enter both username and password');
+                return;
+            }
+            
+            await login(username, password);
+        });
+
+        // Login function
+        async function login(username, password) {
+            const loginBtn = document.getElementById('loginBtn');
+            const loading = document.getElementById('loading');
+            const errorMessage = document.getElementById('errorMessage');
+            
+            try {
+                // Show loading state
+                loginBtn.disabled = true;
+                loginBtn.textContent = 'Signing In...';
+                loading.style.display = 'block';
+                errorMessage.style.display = 'none';
+                
+                // Make login request
+                const response = await axios.post(`${API_BASE_URL}/auth/login`, {
+                    username: username,
+                    password: password
+                });
+                
+                const data = response.data;
+                
+                if (data.success && data.token) {
+                    // Store token and user info
+                    localStorage.setItem('backup_token', data.token);
+                    localStorage.setItem('backup_username', data.username);
+                    localStorage.setItem('backup_expires_at', data.expires_at);
+                    
+                    // Redirect to main interface
+                    window.location.href = 'index.html';
+                } else {
+                    showError('Login failed: Invalid response from server');
+                }
+                
+            } catch (error) {
+                console.error('Login error:', error);
+                
+                if (error.response && error.response.data && error.response.data.error) {
+                    showError(error.response.data.error);
+                } else if (error.response && error.response.status === 401) {
+                    showError('Invalid username or password');
+                } else if (error.response && error.response.status >= 500) {
+                    showError('Server error. Please try again later.');
+                } else if (error.message.includes('Network Error')) {
+                    showError('Network error. Please check your connection.');
+                } else {
+                    showError('Login failed. Please try again.');
+                }
+            } finally {
+                // Reset loading state
+                loginBtn.disabled = false;
+                loginBtn.textContent = 'Sign In';
+                loading.style.display = 'none';
+            }
+        }
+
+        // Validate existing token
+        async function validateExistingToken(token) {
+            try {
+                const response = await axios.post(`${API_BASE_URL}/auth/validate`, {}, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (response.data.valid) {
+                    // Token is still valid, redirect to main interface
+                    window.location.href = 'index.html';
+                }
+            } catch (error) {
+                // Token is invalid or expired, clear storage
+                localStorage.removeItem('backup_token');
+                localStorage.removeItem('backup_username');
+                localStorage.removeItem('backup_expires_at');
+            }
+        }
+
+        // Show error message
+        function showError(message) {
+            const errorMessage = document.getElementById('errorMessage');
+            errorMessage.textContent = message;
+            errorMessage.style.display = 'block';
+            
+            // Auto-hide after 5 seconds
+            setTimeout(() => {
+                errorMessage.style.display = 'none';
+            }, 5000);
+        }
+
+        // Handle Enter key in password field
+        document.getElementById('password').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                document.getElementById('loginForm').dispatchEvent(new Event('submit'));
+            }
+        });
+    </script>
+</body>
+</html>

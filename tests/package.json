@@ -1,0 +1,31 @@
+{
+  "name": "github-backup-e2e-tests",
+  "version": "1.0.0",
+  "description": "End-to-end tests for GitHub Backup Management System",
+  "main": "e2e-test.js",
+  "scripts": {
+    "test": "node api-test.js",
+    "test:e2e": "node e2e-test-configured.js",
+    "test:api": "node api-test.js",
+    "test:headless": "HEADLESS=true node e2e-test-configured.js",
+    "test:setup": "node test-setup.js",
+    "test:all": "npm run test:setup && npm run test:api && npm run test:headless",
+    "install-deps": "npm install && sudo apt update && sudo apt install -y google-chrome-stable"
+  },
+  "keywords": [
+    "testing",
+    "e2e",
+    "puppeteer",
+    "github",
+    "backup",
+    "aws"
+  ],
+  "author": "GitHub Backup System",
+  "license": "MIT",
+  "dependencies": {
+    "puppeteer": "^24.11.2"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}

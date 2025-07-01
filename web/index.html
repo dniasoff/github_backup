@@ -1,0 +1,1480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitHub Backup Management</title>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f5f5f5;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px 0;
+            text-align: center;
+            margin-bottom: 30px;
+            border-radius: 10px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .stat-card h3 {
+            font-size: 2rem;
+            margin-bottom: 10px;
+            color: #667eea;
+        }
+
+        .stat-card p {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .nav-tabs {
+            display: flex;
+            background: white;
+            border-radius: 10px 10px 0 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .nav-tab {
+            flex: 1;
+            padding: 15px 20px;
+            background: #f8f9fa;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .nav-tab.active {
+            background: white;
+            color: #667eea;
+            border-bottom: 3px solid #667eea;
+        }
+
+        .nav-tab:hover {
+            background: #e9ecef;
+        }
+
+        /* Glacier retrieval styles */
+        .glacier-retrieval-container {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+        }
+
+        .glacier-retrieval-container h3 {
+            color: #17a2b8;
+            margin-bottom: 15px;
+        }
+
+        .status-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #17a2b8;
+            margin: 15px 0;
+        }
+
+        .status-card.completed {
+            border-left-color: #28a745;
+        }
+
+        .status-card.failed {
+            border-left-color: #dc3545;
+        }
+
+        .status-card.in-progress {
+            border-left-color: #ffc107;
+        }
+
+        .storage-badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+
+        .storage-s3 {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .storage-glacier {
+            background: #cce7ff;
+            color: #004085;
+        }
+
+        .storage-deep-archive {
+            background: #e2e3e5;
+            color: #383d41;
+        }
+
+        .backup-actions .btn {
+            margin-right: 5px;
+            margin-bottom: 5px;
+        }
+
+        .backup-actions .btn-sm {
+            padding: 4px 8px;
+            font-size: 0.8em;
+        }
+
+        .backup-history-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }
+
+        .backup-history-table th,
+        .backup-history-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .backup-history-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #495057;
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+
+        .backup-history-table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .backup-version-badge {
+            background: #e9ecef;
+            color: #495057;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 0.85em;
+        }
+
+        .backup-meta {
+            font-size: 0.85em;
+            color: #6c757d;
+        }
+
+        .backup-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .status-success {
+            background: #28a745;
+        }
+
+        .status-failed {
+            background: #dc3545;
+        }
+
+        .status-warning {
+            background: #ffc107;
+        }
+
+        .tab-content {
+            background: white;
+            padding: 30px;
+            border-radius: 0 0 10px 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            min-height: 500px;
+        }
+
+        .tab-pane {
+            display: none;
+        }
+
+        .tab-pane.active {
+            display: block;
+        }
+
+        .repository-grid {
+            display: grid;
+            gap: 20px;
+        }
+
+        .repository-card {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .repository-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .repo-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .repo-name {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .repo-status {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        .status-success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-failed {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .repo-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .detail-item {
+            text-align: center;
+        }
+
+        .detail-value {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        .detail-label {
+            font-size: 0.85rem;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .repo-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5a67d8;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #545b62;
+        }
+
+        .btn-sm {
+            padding: 4px 8px;
+            font-size: 0.8rem;
+        }
+
+        .events-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .event-item {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 10px;
+        }
+
+        .event-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .event-type {
+            font-weight: 600;
+            text-transform: capitalize;
+        }
+
+        .event-time {
+            font-size: 0.85rem;
+            color: #666;
+        }
+
+        .event-details {
+            font-size: 0.9rem;
+            color: #333;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 50px;
+            color: #666;
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 30px;
+            border-radius: 10px;
+            width: 95%;
+            max-width: 800px;
+            position: relative;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .modal-title {
+            font-size: 1.5rem;
+            color: #333;
+        }
+
+        .close {
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            color: #aaa;
+        }
+
+        .close:hover {
+            color: #000;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #333;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ced4da;
+            border-radius: 5px;
+            font-size: 1rem;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.25);
+        }
+
+        .backup-history-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        .backup-history-table th,
+        .backup-history-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .backup-history-table th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+            color: #333;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .backup-history-table tr:hover {
+            background-color: #f5f5f5;
+        }
+
+        .backup-version-badge {
+            background: #e9ecef;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 0.9em;
+        }
+
+        .storage-badge {
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 0.8em;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+
+        .storage-s3 {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .storage-glacier {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .storage-deep-archive {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .backup-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .status-success {
+            background-color: #28a745;
+        }
+
+        .status-warning {
+            background-color: #ffc107;
+        }
+
+        .status-error {
+            background-color: #dc3545;
+        }
+
+        .backup-meta {
+            font-size: 0.9em;
+            color: #666;
+            margin-top: 4px;
+        }
+
+        .backup-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .dashboard {
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            }
+
+            .nav-tabs {
+                flex-direction: column;
+            }
+
+            .repo-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+
+            .repo-actions {
+                justify-content: flex-start;
+            }
+
+            .modal-content {
+                width: 98%;
+                margin: 2% auto;
+                padding: 20px;
+            }
+
+            .backup-history-table {
+                font-size: 0.9em;
+            }
+
+            .backup-history-table th,
+            .backup-history-table td {
+                padding: 8px 4px;
+            }
+
+            .backup-actions {
+                flex-direction: column;
+                gap: 4px;
+            }
+
+            .btn-sm {
+                padding: 6px 8px;
+                font-size: 0.75em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔒 GitHub Backup Management</h1>
+            <p>Monitor, manage, and download your GitHub repository backups</p>
+        </div>
+
+        <div class="dashboard" id="dashboard">
+            <div class="stat-card">
+                <h3 id="totalRepos">-</h3>
+                <p>Total Repositories</p>
+            </div>
+            <div class="stat-card">
+                <h3 id="successfulBackups">-</h3>
+                <p>Recent Successful Backups</p>
+            </div>
+            <div class="stat-card">
+                <h3 id="failedBackups">-</h3>
+                <p>Recent Failed Backups</p>
+            </div>
+            <div class="stat-card">
+                <h3 id="successRate">-</h3>
+                <p>Success Rate</p>
+            </div>
+        </div>
+
+        <div class="nav-tabs">
+            <button class="nav-tab active" onclick="showTab('repositories')">Repositories</button>
+            <button class="nav-tab" onclick="showTab('events')">Recent Events</button>
+            <button class="nav-tab" onclick="showTab('downloads')">Download Operations</button>
+        </div>
+
+        <div class="tab-content">
+            <div id="repositories" class="tab-pane active">
+                <div id="repositoriesContent" class="loading">
+                    Loading repositories...
+                </div>
+            </div>
+
+            <div id="events" class="tab-pane">
+                <div id="eventsContent" class="loading">
+                    Loading events...
+                </div>
+            </div>
+
+            <div id="downloads" class="tab-pane">
+                <div id="downloadsContent">
+                    <p>Download operations will be displayed here.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Download Modal -->
+    <div id="downloadModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Download Repository Backup</h2>
+                <span class="close" onclick="closeDownloadModal()">&times;</span>
+            </div>
+            <div id="downloadModalContent">
+                <!-- Content will be populated by JavaScript -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration - Update this with your API Gateway URL
+        const API_BASE_URL = 'https://cg0ycu9hf0.execute-api.eu-west-2.amazonaws.com/prod';
+        
+        let currentData = {
+            repositories: [],
+            events: [],
+            dashboard: {}
+        };
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            checkAuthentication();
+        });
+
+        // Tab management
+        function showTab(tabName) {
+            // Hide all tab panes
+            document.querySelectorAll('.tab-pane').forEach(pane => {
+                pane.classList.remove('active');
+            });
+            
+            // Remove active class from all tabs
+            document.querySelectorAll('.nav-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Show selected tab pane
+            document.getElementById(tabName).classList.add('active');
+            
+            // Add active class to clicked tab
+            event.target.classList.add('active');
+            
+            // Load content for the selected tab
+            if (tabName === 'events' && currentData.events.length === 0) {
+                loadEvents();
+            }
+        }
+
+        // Load dashboard data
+        async function loadDashboard() {
+            try {
+                const response = await axios.get(`${API_BASE_URL}/dashboard`, {
+                    headers: getAuthHeaders()
+                });
+                const data = response.data;
+                currentData.dashboard = data;
+                
+                document.getElementById('totalRepos').textContent = data.total_repositories || 0;
+                document.getElementById('successfulBackups').textContent = data.recent_backups?.successful || 0;
+                document.getElementById('failedBackups').textContent = data.recent_backups?.failed || 0;
+                document.getElementById('successRate').textContent = (data.recent_backups?.success_rate || 0) + '%';
+            } catch (error) {
+                console.error('Error loading dashboard:', error);
+                showError('dashboard', 'Failed to load dashboard data');
+            }
+        }
+
+        // Load repositories
+        async function loadRepositories() {
+            try {
+                // Request all repositories with higher limit
+                const response = await axios.get(`${API_BASE_URL}/repositories?limit=400`, {
+                    headers: getAuthHeaders()
+                });
+                const data = response.data;
+                currentData.repositories = data.repositories || [];
+                
+                console.log(`Loaded ${currentData.repositories.length} repositories`);
+                renderRepositories(currentData.repositories);
+            } catch (error) {
+                console.error('Error loading repositories:', error);
+                // Check if it's an auth error
+                if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+                    console.warn('Authentication failed, redirecting to login');
+                    redirectToLogin();
+                    return;
+                }
+                showError('repositoriesContent', 'Failed to load repositories');
+            }
+        }
+
+        // Render repositories list
+        function renderRepositories(repositories) {
+            const container = document.getElementById('repositoriesContent');
+            
+            if (repositories.length === 0) {
+                container.innerHTML = '<p>No repositories found.</p>';
+                return;
+            }
+            
+            // Sort repositories alphabetically by name
+            const sortedRepositories = repositories.sort((a, b) => a.name.localeCompare(b.name));
+            
+            const html = sortedRepositories.map(repo => {
+                const latestBackup = repo.latest_backup;
+                const backupDate = new Date(latestBackup.timestamp).toLocaleDateString();
+                const backupSize = formatBytes(latestBackup.size_bytes || 0);
+                const storageClass = latestBackup.storage_class || 's3';
+                
+                return `
+                    <div class="repository-card">
+                        <div class="repo-header">
+                            <div class="repo-name">${repo.name}</div>
+                            <div class="repo-status status-success">Active</div>
+                        </div>
+                        <div class="repo-details">
+                            <div class="detail-item">
+                                <div class="detail-value">${repo.backup_count}</div>
+                                <div class="detail-label">Backups</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-value">${backupDate}</div>
+                                <div class="detail-label">Latest Backup</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-value">${backupSize}</div>
+                                <div class="detail-label">Total Size</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-value">${storageClass.toUpperCase()}</div>
+                                <div class="detail-label">Storage</div>
+                            </div>
+                        </div>
+                        <div class="repo-actions">
+                            <button class="btn btn-secondary" onclick="viewBackupVersions('${repo.name}')">
+                                View Versions (${repo.backup_count})
+                            </button>
+                            <button class="btn btn-primary" onclick="initiateDownload('${repo.name}', '${latestBackup.backup_version}')">
+                                Download Latest
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            container.innerHTML = `<div class="repository-grid">${html}</div>`;
+        }
+
+        // Load events
+        async function loadEvents() {
+            try {
+                const eventsContainer = document.getElementById('eventsContent');
+                eventsContainer.innerHTML = '<div class="loading">Loading events...</div>';
+                
+                const response = await axios.get(`${API_BASE_URL}/events?hours=24&limit=1000`, {
+                    headers: getAuthHeaders()
+                });
+                const data = response.data;
+                currentData.events = data.events || [];
+                
+                renderEvents(currentData.events);
+            } catch (error) {
+                console.error('Error loading events:', error);
+                showError('eventsContent', 'Failed to load events');
+            }
+        }
+
+        // Render events list
+        function renderEvents(events) {
+            const container = document.getElementById('eventsContent');
+            
+            if (events.length === 0) {
+                container.innerHTML = '<p>No recent events found.</p>';
+                return;
+            }
+            
+            const html = events.map(event => {
+                const eventTime = new Date(event.timestamp).toLocaleString();
+                const statusClass = event.status === 'completed' ? 'status-success' : 
+                                  event.status === 'failed' ? 'status-failed' : '';
+                
+                return `
+                    <div class="event-item">
+                        <div class="event-header">
+                            <div>
+                                <span class="event-type">${event.event_type}</span> - 
+                                <strong>${event.repository_name}</strong>
+                                <span class="repo-status ${statusClass}">${event.status}</span>
+                            </div>
+                            <div class="event-time">${eventTime}</div>
+                        </div>
+                        <div class="event-details">
+                            ${event.error ? `Error: ${event.error}` : 
+                              event.details ? JSON.stringify(event.details, null, 2) : 
+                              'No additional details'}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            container.innerHTML = `<div class="events-list">${html}</div>`;
+        }
+
+        // View repository backup versions
+        async function viewBackupVersions(repositoryName) {
+            try {
+                showLoadingModal('Loading backup versions...');
+                
+                const response = await axios.get(`${API_BASE_URL}/repositories/${repositoryName}/versions`, {
+                    headers: getAuthHeaders()
+                });
+                const data = response.data;
+                
+                showBackupVersionsModal({
+                    name: repositoryName,
+                    backup_versions: data.backup_versions,
+                    backup_count: data.count,
+                    total_size: data.total_size
+                });
+                
+            } catch (error) {
+                console.error('Error loading backup versions:', error);
+                alert('Failed to load backup versions');
+                closeDownloadModal();
+            }
+        }
+
+        // Show loading modal
+        function showLoadingModal(message) {
+            const modal = document.getElementById('downloadModal');
+            const content = document.getElementById('downloadModalContent');
+            
+            content.innerHTML = `
+                <div style="text-align: center; padding: 40px;">
+                    <div style="margin-bottom: 20px;">
+                        <div style="display: inline-block; width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid #667eea; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+                    </div>
+                    <p>${message}</p>
+                </div>
+                <style>
+                    @keyframes spin {
+                        0% { transform: rotate(0deg); }
+                        100% { transform: rotate(360deg); }
+                    }
+                </style>
+            `;
+            
+            modal.style.display = 'block';
+        }
+
+        // Show backup versions modal
+        function showBackupVersionsModal(repo) {
+            const modal = document.getElementById('downloadModal');
+            const content = document.getElementById('downloadModalContent');
+            
+            // Sort backups by timestamp (newest first)
+            const sortedBackups = repo.backup_versions.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+            
+            const versionsTableRows = sortedBackups.map((backup, index) => {
+                const date = new Date(backup.timestamp);
+                const formattedDate = date.toLocaleDateString();
+                const formattedTime = date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                const size = formatBytes(backup.size_bytes || 0);
+                const storage = backup.storage_class || 's3';
+                const isLatest = index === 0;
+                
+                // Determine storage class styling
+                let storageClass = 'storage-s3';
+                if (storage.includes('glacier')) storageClass = 'storage-glacier';
+                if (storage.includes('deep')) storageClass = 'storage-deep-archive';
+                
+                // Calculate age
+                const ageMs = Date.now() - date.getTime();
+                const ageDays = Math.floor(ageMs / (1000 * 60 * 60 * 24));
+                const ageHours = Math.floor(ageMs / (1000 * 60 * 60));
+                const ageDisplay = ageDays > 0 ? `${ageDays}d ago` : `${ageHours}h ago`;
+                
+                return `
+                    <tr>
+                        <td>
+                            <div class="backup-status">
+                                <div class="status-indicator status-success"></div>
+                                <div>
+                                    <div class="backup-version-badge">${backup.backup_version}</div>
+                                    ${isLatest ? '<div class="backup-meta" style="color: #28a745; font-weight: 500;">Latest</div>' : ''}
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <div>${formattedDate}</div>
+                            <div class="backup-meta">${formattedTime}</div>
+                        </td>
+                        <td>
+                            <div class="backup-meta">${ageDisplay}</div>
+                        </td>
+                        <td>${size}</td>
+                        <td>
+                            <span class="storage-badge ${storageClass}">${storage.replace('_', ' ')}</span>
+                        </td>
+                        <td>
+                            <div class="backup-actions">
+                                ${storage === 's3' ? `
+                                    <button class="btn btn-primary btn-sm" onclick="initiateDownload('${repo.name}', '${backup.backup_version}')" title="Download directly from S3">
+                                        📥 Download
+                                    </button>
+                                ` : `
+                                    <button class="btn btn-warning btn-sm" onclick="initiateGlacierRetrieval('${repo.name}', '${backup.backup_version}')" title="Initiate Glacier retrieval">
+                                        🧊 Retrieve
+                                    </button>
+                                    <button class="btn btn-info btn-sm" onclick="checkGlacierStatus('${repo.name}', '${backup.backup_version}')" title="Check retrieval status">
+                                        📊 Status
+                                    </button>
+                                `}
+                                <button class="btn btn-secondary btn-sm" onclick="showBackupDetails('${repo.name}', '${backup.backup_version}')" title="View backup details">
+                                    📋 Details
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+            
+            content.innerHTML = `
+                <div class="backup-history-container">
+                    <div style="margin-bottom: 20px;">
+                        <h3 style="margin-bottom: 10px;">📦 Backup History: ${repo.name}</h3>
+                        <div style="display: flex; gap: 20px; color: #666; font-size: 0.9em;">
+                            <span><strong>${repo.backup_versions.length}</strong> total backups</span>
+                            <span><strong>${formatBytes(repo.total_size)}</strong> total size</span>
+                            <span><strong>${sortedBackups[0] ? new Date(sortedBackups[0].timestamp).toLocaleDateString() : 'N/A'}</strong> last backup</span>
+                        </div>
+                    </div>
+                    
+                    <div style="max-height: 500px; overflow-y: auto; border: 1px solid #ddd; border-radius: 8px;">
+                        <table class="backup-history-table">
+                            <thead>
+                                <tr>
+                                    <th>Version</th>
+                                    <th>Date</th>
+                                    <th>Age</th>
+                                    <th>Size</th>
+                                    <th>Storage</th>
+                                    <th style="text-align: center;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${versionsTableRows}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <div class="repo-actions" style="margin-top: 20px; text-align: right;">
+                    <button type="button" class="btn btn-secondary" onclick="closeDownloadModal()">Close</button>
+                </div>
+            `;
+            
+            modal.style.display = 'block';
+        }
+
+        // Initiate download
+        function initiateDownload(repositoryName, backupVersion) {
+            const modal = document.getElementById('downloadModal');
+            const content = document.getElementById('downloadModalContent');
+            
+            content.innerHTML = `
+                <form onsubmit="submitDownload(event, '${repositoryName}', '${backupVersion}')">
+                    <div class="form-group">
+                        <label class="form-label">Repository:</label>
+                        <input type="text" class="form-control" value="${repositoryName}" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Backup Version:</label>
+                        <input type="text" class="form-control" value="${backupVersion}" readonly>
+                    </div>
+                    <div class="repo-actions">
+                        <button type="button" class="btn btn-secondary" onclick="closeDownloadModal()">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Start Download</button>
+                    </div>
+                </form>
+            `;
+            
+            modal.style.display = 'block';
+        }
+
+        // Submit download request
+        async function submitDownload(event, repositoryName, backupVersion) {
+            event.preventDefault();
+            
+            try {
+                const response = await axios.post(`${API_BASE_URL}/download`, {
+                    repository_name: repositoryName,
+                    backup_version: backupVersion
+                }, {
+                    headers: getAuthHeaders()
+                });
+                
+                const data = response.data;
+                
+                closeDownloadModal();
+                
+                if (data.download_type === 's3_direct') {
+                    // For S3 downloads, provide download link
+                    if (data.details && data.details.download_url) {
+                        const downloadWindow = window.open(data.details.download_url, '_blank');
+                        if (downloadWindow) {
+                            alert('Download initiated! Download will start automatically.');
+                        } else {
+                            alert(`Download initiated! Download URL: ${data.details.download_url}`);
+                        }
+                    }
+                } else {
+                    // For Glacier downloads, show status
+                    alert(`Download initiated! Job ID: ${data.download_id}\nEstimated completion: ${data.details?.estimated_completion || 'Unknown'}`);
+                }
+                
+            } catch (error) {
+                console.error('Error initiating download:', error);
+                alert('Failed to initiate download: ' + (error.response?.data?.error || error.message));
+            }
+        }
+
+        // Initiate Glacier retrieval with options
+        async function initiateGlacierRetrieval(repositoryName, backupVersion) {
+            const modal = document.getElementById('downloadModal');
+            const content = document.getElementById('downloadModalContent');
+            
+            content.innerHTML = `
+                <div class="glacier-retrieval-container">
+                    <h3>🧊 Glacier Retrieval</h3>
+                    <p>This backup is stored in AWS Glacier. Choose your retrieval speed:</p>
+                    
+                    <form onsubmit="submitGlacierRetrieval(event, '${repositoryName}', '${backupVersion}')">
+                        <div class="form-group">
+                            <label class="form-label">Repository:</label>
+                            <input type="text" class="form-control" value="${repositoryName}" readonly>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Backup Version:</label>
+                            <input type="text" class="form-control" value="${backupVersion}" readonly>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Retrieval Speed:</label>
+                            <select class="form-control" name="retrievalTier" required>
+                                <option value="Standard">Standard (3-5 hours) - Free</option>
+                                <option value="Expedited">Expedited (1-5 minutes) - $0.03/GB</option>
+                                <option value="Bulk">Bulk (5-12 hours) - Cheapest</option>
+                            </select>
+                            <small style="color: #666; margin-top: 5px; display: block;">
+                                Standard retrieval is recommended for most use cases.
+                            </small>
+                        </div>
+                        <div class="repo-actions">
+                            <button type="button" class="btn btn-secondary" onclick="closeDownloadModal()">Cancel</button>
+                            <button type="submit" class="btn btn-warning">🧊 Start Retrieval</button>
+                        </div>
+                    </form>
+                </div>
+            `;
+            
+            modal.style.display = 'block';
+        }
+
+        // Submit Glacier retrieval request
+        async function submitGlacierRetrieval(event, repositoryName, backupVersion) {
+            event.preventDefault();
+            
+            const formData = new FormData(event.target);
+            const retrievalTier = formData.get('retrievalTier');
+            
+            try {
+                showLoadingModal('Initiating Glacier retrieval...');
+                
+                const response = await axios.post(`${API_BASE_URL}/download`, {
+                    repository_name: repositoryName,
+                    backup_version: backupVersion,
+                    retrieval_tier: retrievalTier
+                }, {
+                    headers: getAuthHeaders()
+                });
+                
+                const data = response.data;
+                closeDownloadModal();
+                
+                // Show success modal with tracking information
+                showGlacierJobStatus(data);
+                
+            } catch (error) {
+                closeDownloadModal();
+                console.error('Error initiating Glacier retrieval:', error);
+                alert('Failed to initiate Glacier retrieval: ' + (error.response?.data?.error || error.message));
+            }
+        }
+
+        // Check Glacier retrieval status
+        async function checkGlacierStatus(repositoryName, backupVersion) {
+            try {
+                showLoadingModal('Checking retrieval status...');
+                
+                // Get all download operations for this repository
+                const response = await axios.get(`${API_BASE_URL}/repositories/${repositoryName}/downloads`, {
+                    headers: getAuthHeaders()
+                });
+                
+                closeDownloadModal();
+                
+                const downloads = response.data.downloads || [];
+                const glacierDownloads = downloads.filter(d => 
+                    d.backup_version === backupVersion && 
+                    d.download_type === 'glacier_retrieval'
+                );
+                
+                if (glacierDownloads.length === 0) {
+                    alert('No Glacier retrieval jobs found for this backup.');
+                    return;
+                }
+                
+                // Show the most recent job status
+                const latestJob = glacierDownloads.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
+                showGlacierJobStatus(latestJob);
+                
+            } catch (error) {
+                closeDownloadModal();
+                console.error('Error checking Glacier status:', error);
+                alert('Failed to check Glacier status: ' + (error.response?.data?.error || error.message));
+            }
+        }
+
+        // Show Glacier job status modal
+        function showGlacierJobStatus(jobData) {
+            const modal = document.getElementById('downloadModal');
+            const content = document.getElementById('downloadModalContent');
+            
+            const status = jobData.status || 'unknown';
+            const downloadId = jobData.download_id || jobData.id;
+            const createdAt = jobData.created_at ? new Date(jobData.created_at).toLocaleString() : 'Unknown';
+            const estimatedCompletion = jobData.details?.estimated_completion || '3-5 hours';
+            
+            let statusIcon = '⏳';
+            let statusText = 'In Progress';
+            let statusColor = '#ffc107';
+            
+            if (status === 'completed') {
+                statusIcon = '✅';
+                statusText = 'Completed';
+                statusColor = '#28a745';
+            } else if (status === 'failed') {
+                statusIcon = '❌';
+                statusText = 'Failed';
+                statusColor = '#dc3545';
+            }
+            
+            content.innerHTML = `
+                <div class="glacier-status-container">
+                    <h3>🧊 Glacier Retrieval Status</h3>
+                    
+                    <div class="status-card" style="border-left: 4px solid ${statusColor};">
+                        <div class="status-header">
+                            <span style="font-size: 1.2em;">${statusIcon}</span>
+                            <strong style="color: ${statusColor};">${statusText}</strong>
+                        </div>
+                        
+                        <div class="status-details">
+                            <p><strong>Job ID:</strong> ${downloadId}</p>
+                            <p><strong>Repository:</strong> ${jobData.repository_name || 'Unknown'}</p>
+                            <p><strong>Backup Version:</strong> ${jobData.backup_version || 'Unknown'}</p>
+                            <p><strong>Started:</strong> ${createdAt}</p>
+                            <p><strong>Estimated Completion:</strong> ${estimatedCompletion}</p>
+                            
+                            ${status === 'completed' && jobData.details?.download_url ? `
+                                <div style="margin-top: 15px; padding: 10px; background: #d4edda; border: 1px solid #c3e6cb; border-radius: 5px;">
+                                    <p style="margin: 0; color: #155724;"><strong>✅ Download Ready!</strong></p>
+                                    <button class="btn btn-success" style="margin-top: 10px;" onclick="window.open('${jobData.details.download_url}', '_blank')">
+                                        📥 Download Now
+                                    </button>
+                                </div>
+                            ` : status === 'in_progress' ? `
+                                <div style="margin-top: 15px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 5px;">
+                                    <p style="margin: 0; color: #856404;"><strong>⏳ Retrieval in progress...</strong></p>
+                                    <p style="margin: 5px 0 0 0; font-size: 0.9em; color: #856404;">You'll receive a notification when the retrieval is complete.</p>
+                                </div>
+                            ` : status === 'failed' ? `
+                                <div style="margin-top: 15px; padding: 10px; background: #f8d7da; border: 1px solid #f1b0b7; border-radius: 5px;">
+                                    <p style="margin: 0; color: #721c24;"><strong>❌ Retrieval Failed</strong></p>
+                                    <p style="margin: 5px 0 0 0; font-size: 0.9em; color: #721c24;">${jobData.error || 'Unknown error occurred'}</p>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                    
+                    <div class="repo-actions" style="margin-top: 20px;">
+                        ${status === 'in_progress' ? `
+                            <button class="btn btn-info" onclick="checkGlacierStatus('${jobData.repository_name}', '${jobData.backup_version}')">🔄 Refresh Status</button>
+                        ` : ''}
+                        <button class="btn btn-secondary" onclick="closeDownloadModal()">Close</button>
+                    </div>
+                </div>
+            `;
+            
+            modal.style.display = 'block';
+        }
+
+        // Show backup details
+        async function showBackupDetails(repositoryName, backupVersion) {
+            try {
+                showLoadingModal('Loading backup details...');
+                
+                const response = await axios.get(`${API_BASE_URL}/repositories/${repositoryName}/history?limit=100`, {
+                    headers: getAuthHeaders()
+                });
+                const data = response.data;
+                
+                // Find the specific backup version
+                const backup = data.history.find(b => b.backup_version === backupVersion);
+                if (!backup) {
+                    alert('Backup details not found');
+                    closeDownloadModal();
+                    return;
+                }
+                
+                const modal = document.getElementById('downloadModal');
+                const content = document.getElementById('downloadModalContent');
+                
+                const date = new Date(backup.timestamp);
+                const formattedDate = date.toLocaleDateString();
+                const formattedTime = date.toLocaleTimeString();
+                const size = formatBytes(backup.size_bytes || 0);
+                const storage = backup.storage_class || 's3';
+                
+                content.innerHTML = `
+                    <div class="backup-details-container">
+                        <h3 style="margin-bottom: 20px;">📋 Backup Details</h3>
+                        
+                        <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                                <div>
+                                    <div style="font-weight: 600; color: #333; margin-bottom: 5px;">Repository</div>
+                                    <div style="font-family: monospace; background: white; padding: 8px; border-radius: 4px;">${repositoryName}</div>
+                                </div>
+                                <div>
+                                    <div style="font-weight: 600; color: #333; margin-bottom: 5px;">Version</div>
+                                    <div style="font-family: monospace; background: white; padding: 8px; border-radius: 4px;">${backupVersion}</div>
+                                </div>
+                                <div>
+                                    <div style="font-weight: 600; color: #333; margin-bottom: 5px;">Date & Time</div>
+                                    <div style="background: white; padding: 8px; border-radius: 4px;">${formattedDate} at ${formattedTime}</div>
+                                </div>
+                                <div>
+                                    <div style="font-weight: 600; color: #333; margin-bottom: 5px;">Size</div>
+                                    <div style="background: white; padding: 8px; border-radius: 4px;">${size}</div>
+                                </div>
+                                <div>
+                                    <div style="font-weight: 600; color: #333; margin-bottom: 5px;">Storage Class</div>
+                                    <div style="background: white; padding: 8px; border-radius: 4px;">${storage.toUpperCase()}</div>
+                                </div>
+                                <div>
+                                    <div style="font-weight: 600; color: #333; margin-bottom: 5px;">Status</div>
+                                    <div style="background: white; padding: 8px; border-radius: 4px;">
+                                        <span class="repo-status status-success">Completed</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        ${backup.error ? `
+                            <div style="background: #f8d7da; border: 1px solid #f5c6cb; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                                <div style="font-weight: 600; color: #721c24; margin-bottom: 10px;">⚠️ Error Details</div>
+                                <div style="color: #721c24; font-family: monospace; font-size: 0.9em;">${backup.error}</div>
+                            </div>
+                        ` : ''}
+                        
+                        ${backup.details ? `
+                            <div style="margin-bottom: 20px;">
+                                <div style="font-weight: 600; color: #333; margin-bottom: 10px;">📊 Additional Details</div>
+                                <pre style="background: #f8f9fa; padding: 15px; border-radius: 8px; overflow-x: auto; font-size: 0.9em;">${JSON.stringify(backup.details, null, 2)}</pre>
+                            </div>
+                        ` : ''}
+                        
+                        <div style="display: flex; gap: 10px; justify-content: center; margin-top: 30px;">
+                            <button class="btn btn-primary" onclick="initiateDownload('${repositoryName}', '${backupVersion}')">
+                                📥 Download This Version
+                            </button>
+                            <button class="btn btn-secondary" onclick="viewBackupVersions('${repositoryName}')">
+                                ← Back to History
+                            </button>
+                        </div>
+                    </div>
+                `;
+                
+            } catch (error) {
+                console.error('Error loading backup details:', error);
+                alert('Failed to load backup details');
+                closeDownloadModal();
+            }
+        }
+
+        // Close download modal
+        function closeDownloadModal() {
+            document.getElementById('downloadModal').style.display = 'none';
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('downloadModal');
+            if (event.target === modal) {
+                closeDownloadModal();
+            }
+        };
+
+        // Utility functions
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        function showError(containerId, message) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = `<div class="error">${message}</div>`;
+        }
+
+        // Authentication functions
+        async function checkAuthentication() {
+            const token = localStorage.getItem('backup_token');
+            const username = localStorage.getItem('backup_username');
+            
+            if (!token || !username) {
+                redirectToLogin();
+                return;
+            }
+            
+            try {
+                const response = await axios.post(`${API_BASE_URL}/auth/validate`, {}, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (response.data.valid) {
+                    // Authentication successful, load the application
+                    setupAuthenticatedSession(username);
+                    loadDashboard();
+                    loadRepositories();
+                } else {
+                    redirectToLogin();
+                }
+            } catch (error) {
+                console.error('Authentication check failed:', error);
+                redirectToLogin();
+            }
+        }
+        
+        function setupAuthenticatedSession(username) {
+            // Add user info to header
+            const header = document.querySelector('.header p');
+            header.innerHTML = `Monitor, manage, and download your GitHub repository backups<br><small>Logged in as: ${username} | <a href="#" onclick="logout()" style="color: rgba(255,255,255,0.8);">Logout</a></small>`;
+        }
+        
+        function redirectToLogin() {
+            localStorage.removeItem('backup_token');
+            localStorage.removeItem('backup_username');
+            localStorage.removeItem('backup_expires_at');
+            window.location.href = 'login.html';
+        }
+        
+        async function logout() {
+            const token = localStorage.getItem('backup_token');
+            
+            try {
+                if (token) {
+                    await axios.post(`${API_BASE_URL}/auth/logout`, {}, {
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error('Logout error:', error);
+            } finally {
+                redirectToLogin();
+            }
+        }
+        
+        // Add authentication header to all API requests
+        function getAuthHeaders() {
+            const token = localStorage.getItem('backup_token');
+            return token ? { 'Authorization': `Bearer ${token}` } : {};
+        }
+
+        // Auto-refresh dashboard every 5 minutes
+        setInterval(loadDashboard, 5 * 60 * 1000);
+    </script>
+</body>
+</html>
